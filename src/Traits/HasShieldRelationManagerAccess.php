@@ -14,28 +14,28 @@ trait HasShieldRelationManagerAccess {
      * If relation_managers are enabled, checks specific permission,
      * otherwise falls back to resource permission.
      */
-    public function canView(): bool {
+    protected function canView(Model $record): bool {
         return $this->checkRelationManagerPermission('view');
     }
 
     /**
      * Check if the user can create records in this relation manager.
      */
-    public function canCreate(): bool {
+    protected function canCreate(): bool {
         return $this->checkRelationManagerPermission('create');
     }
 
     /**
      * Check if the user can update records in this relation manager.
      */
-    public function canUpdate(Model $record): bool {
+    protected function canEdit(Model $record): bool {
         return $this->checkRelationManagerPermission('update');
     }
 
     /**
      * Check if the user can delete records in this relation manager.
      */
-    public function canDelete(Model $record): bool {
+    protected function canDelete(Model $record): bool {
         return $this->checkRelationManagerPermission('delete');
     }
 
