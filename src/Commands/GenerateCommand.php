@@ -13,8 +13,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use function Laravel\Prompts\Select;
 
 #[AsCommand(name: 'shield:generate')]
-class GenerateCommand extends Command
-{
+class GenerateCommand extends Command {
     use Concerns\CanBeProhibitable;
     use Concerns\CanGeneratePolicy;
     use Concerns\CanGenerateRelationshipsForTenancy;
@@ -69,8 +68,7 @@ class GenerateCommand extends Command
     /** @var string */
     public $description = 'Generate Permissions and/or Policies for Filament entities.';
 
-    public function handle(): int
-    {
+    public function handle(): int {
         if ($this->isProhibited()) {
             return Command::FAILURE;
         }
@@ -120,8 +118,7 @@ class GenerateCommand extends Command
         return Command::SUCCESS;
     }
 
-    protected function determinGeneratorOptionAndEntities(): void
-    {
+    protected function determinGeneratorOptionAndEntities(): void {
         $this->generatorOption = $this->option('option') ?? Utils::getGeneratorOption();
 
         $this->ignoreConfigExclude = $this->option('ignore-config-exclude') ?? false;
@@ -143,8 +140,7 @@ class GenerateCommand extends Command
         $this->onlyWidgets = ! $this->option('exclude') && filled($this->option('widget'));
     }
 
-    protected function generatableResources(): ?array
-    {
+    protected function generatableResources(): ?array {
         return collect(FilamentShield::getResources())
             ->filter(function ($resource) {
                 if ($this->excludeResources) {
@@ -160,8 +156,7 @@ class GenerateCommand extends Command
             ->toArray();
     }
 
-    protected function generatablePages(): ?array
-    {
+    protected function generatablePages(): ?array {
         return collect(FilamentShield::getPages())
             ->filter(function ($page) {
                 if ($this->excludePages) {
@@ -177,8 +172,7 @@ class GenerateCommand extends Command
             ->toArray();
     }
 
-    protected function generatableWidgets(): ?array
-    {
+    protected function generatableWidgets(): ?array {
         return collect(FilamentShield::getWidgets())
             ->filter(function ($widget) {
                 if ($this->excludeWidgets) {
@@ -194,8 +188,7 @@ class GenerateCommand extends Command
             ->toArray();
     }
 
-    protected function generateForResources(array $resources): Collection
-    {
+    protected function generateForResources(array $resources): Collection {
         return collect($resources)
             ->values()
             ->each(function ($entity) {
@@ -222,22 +215,19 @@ class GenerateCommand extends Command
             });
     }
 
-    protected function generateForPages(array $pages): Collection
-    {
+    protected function generateForPages(array $pages): Collection {
         return collect($pages)
             ->values()
-            ->each(fn (array $page) => FilamentShield::generateForPage($page['permission']));
+            ->each(fn(array $page) => FilamentShield::generateForPage($page['permission']));
     }
 
-    protected function generateForWidgets(array $widgets): Collection
-    {
+    protected function generateForWidgets(array $widgets): Collection {
         return collect($widgets)
             ->values()
-            ->each(fn (array $widget) => FilamentShield::generateForWidget($widget['permission']));
+            ->each(fn(array $widget) => FilamentShield::generateForWidget($widget['permission']));
     }
 
-    protected function resourceInfo(array $resources): void
-    {
+    protected function resourceInfo(array $resources): void {
         if ($this->option('minimal')) {
             $this->components->info('Successfully generated Permissions & Policies.');
         } else {
@@ -270,8 +260,7 @@ class GenerateCommand extends Command
         }
     }
 
-    protected function getRelationManagerPermissions(array $resource): array
-    {
+    protected function getRelationManagerPermissions(array $resource): array {
         $resourceFQCN = $resource['fqcn'];
         $resourceSlug = $resource['resource'];
 
@@ -290,11 +279,15 @@ class GenerateCommand extends Command
 
         foreach ($relations as $relationClass) {
             $relationName = class_basename($relationClass);
-            $relationKey = Str::of($relationName)
-                ->beforeLast('RelationManager')
+            $baseNameWithoutRelationManager = (string) Str::of($relationName)->beforeLast('RelationManager');
+
+            // Extract just the relation name by removing the resource name prefix (case-insensitive)
+            // Try to match and remove the resource name in StudlyCase
+            $resourceStudly = Str::of($resourceSlug)->studly()->toString();
+            $relationKey = (string) Str::of($baseNameWithoutRelationManager)
+                ->replaceFirst($resourceStudly, '')  // remove resource name (e.g., "TahrikEJadid")
                 ->kebab()
-                ->after($resourceSlug)  // strip resource name prefix
-                ->ltrim('-')  // strip leading dash
+                ->ltrim('-')  // strip any leading dashes
                 ->toString();
 
             foreach ($operations as $operation) {
@@ -305,8 +298,7 @@ class GenerateCommand extends Command
         return $permissions;
     }
 
-    protected function pageInfo(array $pages): void
-    {
+    protected function pageInfo(array $pages): void {
         if ($this->option('minimal')) {
             $this->components->info('Successfully generated Page Permissions.');
         } else {
@@ -324,8 +316,7 @@ class GenerateCommand extends Command
         }
     }
 
-    protected function widgetInfo(array $widgets): void
-    {
+    protected function widgetInfo(array $widgets): void {
         if ($this->option('minimal')) {
             $this->components->info('Successfully generated Widget Permissions.');
         } else {
@@ -343,8 +334,7 @@ class GenerateCommand extends Command
         }
     }
 
-    protected static function getPolicyStub(string $model): string
-    {
+    protected static function getPolicyStub(string $model): string {
         if (Str::is(Str::of(Utils::getAuthProviderFQCN())->afterLast('\\'), $model)) {
             return 'UserPolicy';
         }
@@ -352,8 +342,7 @@ class GenerateCommand extends Command
         return 'DefaultPolicy';
     }
 
-    protected function resetConfigExclusionCondition(bool $condition): void
-    {
+    protected function resetConfigExclusionCondition(bool $condition): void {
         if ($condition) {
             Utils::enableGeneralExclude();
         }
