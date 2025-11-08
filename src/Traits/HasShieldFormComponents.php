@@ -122,7 +122,11 @@ trait HasShieldFormComponents
         return $permissions
             ->mapWithKeys(fn ($permission) => [
                 $permission->name => static::shield()->hasLocalizedPermissionLabels()
-                    ? str($permission->name)->headline()->toString()
+                    ? str($permission->name)
+                        ->after("{$resourceSlug}__")  // remove the resource prefix
+                        ->replace('_', ' ')
+                        ->headline()
+                        ->toString()
                     : $permission->name,
             ])
             ->toArray();
@@ -172,6 +176,7 @@ trait HasShieldFormComponents
     public static function getCustomPermissionOptions(): ?array
     {
         return FilamentShield::getCustomPermissions()
+            ->reject(fn ($perm) => str_contains($perm, '__'))  // ⛔ skip relation-manager permissions
             ->mapWithKeys(fn ($customPermission) => [
                 $customPermission => static::shield()->hasLocalizedPermissionLabels() ? str($customPermission)->headline()->toString() : $customPermission,
             ])
