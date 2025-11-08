@@ -100,6 +100,7 @@ trait HasShieldRelationManagerAccess
         // Extract the resource class name from namespace
         if (preg_match('/Resources\\\\(\w+Resource)\\\\RelationManagers/', $namespace, $matches)) {
             $resourceClass = $matches[1];
+
             // Convert MemberResource -> member
             return Str::of($resourceClass)
                 ->beforeLast('Resource')
@@ -132,4 +133,3 @@ trait HasShieldRelationManagerAccess
         return $user->can($permissionName);
     }
 }
-
