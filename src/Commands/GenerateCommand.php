@@ -245,22 +245,62 @@ class GenerateCommand extends Command
             $this->table(
                 ['#', 'Resource', 'Policy', 'Permissions'],
                 collect($resources)->map(function ($resource, $key) {
+                    $permissions = collect(
+                        Utils::getResourcePermissionPrefixes($resource['fqcn'])
+                    )->map(function ($permission) use ($resource) {
+                        return $permission . '_' . $resource['resource'];
+                    })->toArray();
+
+                    // Add relation-manager permissions if enabled
+                    if (config('filament-shield.relation_managers.enabled') && method_exists($resource['fqcn'], 'getRelations')) {
+                        $relationPermissions = $this->getRelationManagerPermissions($resource);
+                        if (! empty($relationPermissions)) {
+                            $permissions = array_merge($permissions, $relationPermissions);
+                        }
+                    }
+
                     return [
                         '#' => $key + 1,
                         'Resource' => $resource['model'],
                         'Policy' => "{$resource['model']}Policy.php" . ($this->generatorOption !== 'permissions' ? ' ✅' : ' ❌'),
-                        'Permissions' => implode(
-                            ',' . PHP_EOL,
-                            collect(
-                                Utils::getResourcePermissionPrefixes($resource['fqcn'])
-                            )->map(function ($permission) use ($resource) {
-                                return $permission . '_' . $resource['resource'];
-                            })->toArray()
-                        ) . ($this->generatorOption !== 'policies' ? ' ✅' : ' ❌'),
+                        'Permissions' => implode(',' . PHP_EOL, $permissions) . ($this->generatorOption !== 'policies' ? ' ✅' : ' ❌'),
                     ];
                 })
             );
         }
+    }
+
+    protected function getRelationManagerPermissions(array $resource): array
+    {
+        $resourceFQCN = $resource['fqcn'];
+        $resourceSlug = $resource['resource'];
+
+        if (! method_exists($resourceFQCN, 'getRelations')) {
+            return [];
+        }
+
+        $relations = $resourceFQCN::getRelations();
+
+        if (empty($relations)) {
+            return [];
+        }
+
+        $permissions = [];
+        $operations = config('filament-shield.relation_managers.operations', ['view', 'create', 'update', 'delete']);
+
+        foreach ($relations as $relationClass) {
+            $relationName = class_basename($relationClass);
+            $relationKey = Str::of($relationName)
+                ->beforeLast('RelationManager')
+                ->kebab()
+                ->toString();
+
+            foreach ($operations as $operation) {
+                $permissions[] = "{$operation}_{$resourceSlug}__{$relationKey}";
+            }
+        }
+
+        return $permissions;
     }
 
     protected function pageInfo(array $pages): void
