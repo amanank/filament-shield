@@ -89,4 +89,9 @@ return [
         'enabled' => true,
     ],
 
+    'relation_managers' => [
+        'enabled' => true,
+        'operations' => ['view', 'create', 'update', 'delete'],
+    ],
+
 ];

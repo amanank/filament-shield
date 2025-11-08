@@ -69,6 +69,49 @@ class FilamentShield
 
             static::giveSuperAdminPermission($permissions);
         }
+
+        // Generate relation-manager permissions if enabled
+        if (config('filament-shield.relation_managers.enabled') && method_exists($resourceByFQCN, 'getRelations')) {
+            $this->generateForRelationManagers($entity);
+        }
+    }
+
+    public function generateForRelationManagers(array $entity): void
+    {
+        $resourceByFQCN = $entity['fqcn'];
+        $resourceSlug = $entity['resource'];
+
+        if (! method_exists($resourceByFQCN, 'getRelations')) {
+            return;
+        }
+
+        $relations = $resourceByFQCN::getRelations();
+
+        if (empty($relations)) {
+            return;
+        }
+
+        $permissions = collect();
+        $operations = config('filament-shield.relation_managers.operations', ['view', 'create', 'update', 'delete']);
+
+        foreach ($relations as $relationClass) {
+            $relationName = class_basename($relationClass);
+            $relationKey = Str::of($relationName)
+                ->beforeLast('RelationManager')
+                ->kebab()
+                ->toString();
+
+            foreach ($operations as $operation) {
+                $permissionName = "{$operation}_{$resourceSlug}__{$relationKey}";
+
+                $permissions->push(Utils::getPermissionModel()::firstOrCreate(
+                    ['name' => $permissionName],
+                    ['guard_name' => Utils::getFilamentAuthGuard()]
+                ));
+            }
+        }
+
+        static::giveSuperAdminPermission($permissions);
     }
 
     public static function generateForPage(string $page): void

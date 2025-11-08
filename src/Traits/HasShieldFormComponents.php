@@ -16,14 +16,21 @@ trait HasShieldFormComponents
 {
     public static function getShieldFormComponents(): Component
     {
+        $tabs = [
+            static::getTabFormComponentForResources(),
+            static::getTabFormComponentForPage(),
+            static::getTabFormComponentForWidget(),
+        ];
+
+        if (config('filament-shield.relation_managers.enabled')) {
+            $tabs[] = static::getTabFormComponentForRelationManagers();
+        }
+
+        $tabs[] = static::getTabFormComponentForCustomPermissions();
+
         return Forms\Components\Tabs::make('Permissions')
             ->contained()
-            ->tabs([
-                static::getTabFormComponentForResources(),
-                static::getTabFormComponentForPage(),
-                static::getTabFormComponentForWidget(),
-                static::getTabFormComponentForCustomPermissions(),
-            ])
+            ->tabs($tabs)
             ->columnSpan('full');
     }
 
@@ -200,6 +207,36 @@ trait HasShieldFormComponents
                     options: $options,
                 ),
             ]);
+    }
+
+    public static function getTabFormComponentForRelationManagers(): Component
+    {
+        $options = static::getRelationManagerPermissionOptions();
+        $count = count($options);
+
+        return Forms\Components\Tabs\Tab::make('relations')
+            ->label('Relation Managers')
+            ->visible(fn (): bool => (bool) count($options) > 0)
+            ->badge($count)
+            ->schema([
+                static::getCheckboxListFormComponent(
+                    name: 'relation_managers_tab',
+                    options: $options,
+                ),
+            ]);
+    }
+
+    public static function getRelationManagerPermissionOptions(): array
+    {
+        $permissions = Utils::getPermissionModel()::where('name', 'like', '%__%')->get();
+
+        return $permissions
+            ->mapWithKeys(fn ($permission) => [
+                $permission->name => static::shield()->hasLocalizedPermissionLabels()
+                    ? str($permission->name)->headline()->toString()
+                    : $permission->name,
+            ])
+            ->toArray();
     }
 
     public static function getTabFormComponentForSimpleResourcePermissionsView(): Component
