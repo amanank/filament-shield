@@ -22,12 +22,33 @@ class EditRole extends EditRecord {
     }
 
     protected function mutateFormDataBeforeSave(array $data): array {
-        $this->permissions = collect($data)
-            ->except(['name', 'guard_name', 'select_all', Utils::getTenantModelForeignKey()])
-            ->flatten()
-            ->reject(fn($permission) => empty($permission) || $permission === '__rm__') // ✅ ignore removed
-            ->unique()
-            ->values();
+        $ignoreKeys = ['name', 'guard_name', 'select_all', Utils::getTenantModelForeignKey()];
+
+        $permissions = collect();
+
+        foreach ($data as $key => $values) {
+            if (in_array($key, $ignoreKeys)) {
+                continue;
+            }
+
+            if (! is_array($values)) {
+                continue;
+            }
+
+            // Livewire sends [ 'perm1', 'perm2', '__rm__', '__rm__' ] etc.
+            $clean = collect($values)
+                ->filter(fn($v) => $v && $v !== '__rm__')
+                ->values();
+
+            $permissions = $permissions->merge($clean);
+        }
+
+        $this->permissions = $permissions->unique()->values();
+
+        Log::info('Shield cleaned permissions', [
+            'count' => $this->permissions->count(),
+            'permissions' => $this->permissions->all(),
+        ]);
 
         return Arr::only($data, ['name', 'guard_name', Utils::getTenantModelForeignKey()]);
     }
