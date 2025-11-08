@@ -41,14 +41,25 @@ trait HasShieldRelationManagerAccess {
             $relationManagerClass,
         );
 
+        \Illuminate\Support\Facades\Log::info('Shield trait checking permission', [
+            'action' => $action,
+            'resourceSlug' => $resourceSlug,
+            'relationManagerClass' => $relationManagerClass,
+            'permissionName' => $permissionName,
+            'userPermissions' => $user->getPermissionNames()->filter(fn($p) => str_contains($p, $resourceSlug))->values()->all(),
+        ]);
+
         // Check if user has the specific relation manager permission
         if ($user->can($permissionName)) {
+            \Illuminate\Support\Facades\Log::info('Shield: User has relation manager permission', ['permission' => $permissionName]);
             return true;
         }
 
         // Fall back to resource permission
         $resourcePermissionName = "{$action}_{$resourceSlug}";
-        return $user->can($resourcePermissionName);
+        $hasResourcePerm = $user->can($resourcePermissionName);
+        \Illuminate\Support\Facades\Log::info('Shield: Checking resource permission', ['permission' => $resourcePermissionName, 'result' => $hasResourcePerm]);
+        return $hasResourcePerm;
     }
 
     /**
