@@ -10,57 +10,25 @@ use Illuminate\Support\Str;
 
 trait HasShieldRelationManagerAccess {
     /**
-     * Check if the user can view this relation manager.
-     * If relation_managers are enabled, checks specific permission,
-     * otherwise falls back to resource permission.
+     * Override the can() method to check relation manager specific permissions
+     * This is called by canCreate(), canEdit(), canDelete(), etc.
      */
-    protected function canView(Model $record): bool {
-        return $this->checkRelationManagerPermission('view');
-    }
+    protected function can(string $action, ?\Illuminate\Database\Eloquent\Model $record = null): bool {
+        // If relation managers are not enabled, use parent's authorization
+        if (! config('filament-shield.relation_managers.enabled')) {
+            return parent::can($action, $record);
+        }
 
-    /**
-     * Check if the user can create records in this relation manager.
-     */
-    protected function canCreate(): bool {
-        return $this->checkRelationManagerPermission('create');
-    }
-
-    /**
-     * Check if the user can update records in this relation manager.
-     */
-    protected function canEdit(Model $record): bool {
-        return $this->checkRelationManagerPermission('update');
-    }
-
-    /**
-     * Check if the user can delete records in this relation manager.
-     */
-    protected function canDelete(Model $record): bool {
-        return $this->checkRelationManagerPermission('delete');
-    }
-
-    /**
-     * Check relation manager specific permission or fall back to resource permission
-     */
-    protected function checkRelationManagerPermission(string $operation): bool {
         $user = auth(Utils::getFilamentAuthGuard())->user();
 
         if (! $user) {
             return false;
         }
 
-        // If relation managers are not enabled, fall back to resource permissions
-        if (! config('filament-shield.relation_managers.enabled')) {
-            return $this->fallbackToResourcePermission($operation);
-        }
-
-        // Get the resource slug from the parent resource
-        // The parent resource is available via $this->getOwnerRecord() but we need the resource class
-        // We extract it from the namespace: App\Filament\Admin\Resources\MemberResource\RelationManagers\HistoryRelationManager
         $resourceSlug = $this->extractResourceSlugFromNamespace();
 
         if (! $resourceSlug) {
-            return $this->fallbackToResourcePermission($operation);
+            return parent::can($action, $record);
         }
 
         // Get the relation manager class name
@@ -68,7 +36,7 @@ trait HasShieldRelationManagerAccess {
 
         // Generate the permission key
         $permissionName = Utils::generateRelationManagerPermissionKey(
-            $operation,
+            $action,
             $resourceSlug,
             $relationManagerClass,
         );
@@ -79,7 +47,38 @@ trait HasShieldRelationManagerAccess {
         }
 
         // Fall back to resource permission
-        return $this->fallbackToResourcePermission($operation);
+        $resourcePermissionName = "{$action}_{$resourceSlug}";
+        return $user->can($resourcePermissionName);
+    }
+
+    /**
+     * Check if the user can view this relation manager.
+     * If relation_managers are enabled, checks specific permission,
+     * otherwise falls back to resource permission.
+     */
+    protected function canView(Model $record): bool {
+        return $this->can('view', $record);
+    }
+
+    /**
+     * Check if the user can create records in this relation manager.
+     */
+    protected function canCreate(): bool {
+        return $this->can('create');
+    }
+
+    /**
+     * Check if the user can update records in this relation manager.
+     */
+    protected function canEdit(Model $record): bool {
+        return $this->can('update', $record);
+    }
+
+    /**
+     * Check if the user can delete records in this relation manager.
+     */
+    protected function canDelete(Model $record): bool {
+        return $this->can('delete', $record);
     }
 
     /**
@@ -102,26 +101,5 @@ trait HasShieldRelationManagerAccess {
         }
 
         return null;
-    }
-
-    /**
-     * Fall back to checking the resource permission
-     */
-    protected function fallbackToResourcePermission(string $operation): bool {
-        $user = auth(Utils::getFilamentAuthGuard())->user();
-
-        if (! $user) {
-            return false;
-        }
-
-        $resourceSlug = $this->extractResourceSlugFromNamespace();
-
-        if (! $resourceSlug) {
-            return false;
-        }
-
-        $permissionName = "{$operation}_{$resourceSlug}";
-
-        return $user->can($permissionName);
     }
 }
