@@ -46,7 +46,7 @@ trait HasShieldRelationManagerAccess {
             'resourceSlug' => $resourceSlug,
             'relationManagerClass' => $relationManagerClass,
             'permissionName' => $permissionName,
-            'userPermissions' => $user->getPermissionNames()->filter(fn($p) => str_contains($p, $resourceSlug))->values()->all(),
+            'userPermissions' => $user->getAllPermissions()->pluck('name')->filter(fn($p) => str_contains($p, $resourceSlug))->values()->all(),
         ]);
 
         // Check if user has the specific relation manager permission
