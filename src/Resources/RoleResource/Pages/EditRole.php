@@ -22,12 +22,12 @@ class EditRole extends EditRecord {
     }
 
     protected function mutateFormDataBeforeSave(array $data): array {
-        // Collect selected permissions from form data
         $this->permissions = collect($data)
             ->except(['name', 'guard_name', 'select_all', Utils::getTenantModelForeignKey()])
             ->flatten()
-            ->filter() // just remove null/empty values
-            ->unique();
+            ->reject(fn($permission) => empty($permission) || $permission === '__rm__') // ✅ ignore removed
+            ->unique()
+            ->values();
 
         return Arr::only($data, ['name', 'guard_name', Utils::getTenantModelForeignKey()]);
     }
