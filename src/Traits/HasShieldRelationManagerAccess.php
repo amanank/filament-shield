@@ -68,28 +68,36 @@ trait HasShieldRelationManagerAccess {
      * otherwise falls back to resource permission.
      */
     protected function canView(Model $record): bool {
-        return $this->can('view', $record);
+        $result = $this->can('view', $record);
+        \Illuminate\Support\Facades\Log::info('Shield canView', ['result' => $result, 'class' => static::class]);
+        return $result;
     }
 
     /**
      * Check if the user can create records in this relation manager.
      */
     protected function canCreate(): bool {
-        return $this->can('create');
+        $result = $this->can('create');
+        \Illuminate\Support\Facades\Log::info('Shield canCreate', ['result' => $result, 'class' => static::class]);
+        return $result;
     }
 
     /**
      * Check if the user can update records in this relation manager.
      */
     protected function canEdit(Model $record): bool {
-        return $this->can('update', $record);
+        $result = $this->can('update', $record);
+        \Illuminate\Support\Facades\Log::info('Shield canEdit', ['result' => $result, 'class' => static::class]);
+        return $result;
     }
 
     /**
      * Check if the user can delete records in this relation manager.
      */
     protected function canDelete(Model $record): bool {
-        return $this->can('delete', $record);
+        $result = $this->can('delete', $record);
+        \Illuminate\Support\Facades\Log::info('Shield canDelete', ['result' => $result, 'class' => static::class]);
+        return $result;
     }
 
     /**
