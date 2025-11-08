@@ -8,47 +8,41 @@ use BezhanSalleh\FilamentShield\Support\Utils;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
-trait HasShieldRelationManagerAccess
-{
+trait HasShieldRelationManagerAccess {
     /**
      * Check if the user can view this relation manager.
      * If relation_managers are enabled, checks specific permission,
      * otherwise falls back to resource permission.
      */
-    public function canView(): bool
-    {
+    public function canView(): bool {
         return $this->checkRelationManagerPermission('view');
     }
 
     /**
      * Check if the user can create records in this relation manager.
      */
-    public function canCreate(): bool
-    {
+    public function canCreate(): bool {
         return $this->checkRelationManagerPermission('create');
     }
 
     /**
      * Check if the user can update records in this relation manager.
      */
-    public function canUpdate(Model $record): bool
-    {
+    public function canUpdate(Model $record): bool {
         return $this->checkRelationManagerPermission('update');
     }
 
     /**
      * Check if the user can delete records in this relation manager.
      */
-    public function canDelete(Model $record): bool
-    {
+    public function canDelete(Model $record): bool {
         return $this->checkRelationManagerPermission('delete');
     }
 
     /**
      * Check relation manager specific permission or fall back to resource permission
      */
-    protected function checkRelationManagerPermission(string $operation): bool
-    {
+    protected function checkRelationManagerPermission(string $operation): bool {
         $user = auth(Utils::getFilamentAuthGuard())->user();
 
         if (! $user) {
@@ -69,15 +63,15 @@ trait HasShieldRelationManagerAccess
             return $this->fallbackToResourcePermission($operation);
         }
 
-        // Get the relation manager name
-        $relationManagerClass = class_basename(static::class);
-        $relationKey = Str::of($relationManagerClass)
-            ->beforeLast('RelationManager')
-            ->kebab()
-            ->toString();
+        // Get the relation manager class name
+        $relationManagerClass = static::class;
 
-        // Build the permission name
-        $permissionName = "{$operation}_{$resourceSlug}__{$relationKey}";
+        // Generate the permission key
+        $permissionName = Utils::generateRelationManagerPermissionKey(
+            $operation,
+            $resourceSlug,
+            $relationManagerClass,
+        );
 
         // Check if user has the specific relation manager permission
         if ($user->can($permissionName)) {
@@ -93,8 +87,7 @@ trait HasShieldRelationManagerAccess
      * Example: App\Filament\Admin\Resources\MemberResource\RelationManagers\HistoryRelationManager
      * Returns: member
      */
-    protected function extractResourceSlugFromNamespace(): ?string
-    {
+    protected function extractResourceSlugFromNamespace(): ?string {
         $namespace = static::class;
 
         // Extract the resource class name from namespace
@@ -114,8 +107,7 @@ trait HasShieldRelationManagerAccess
     /**
      * Fall back to checking the resource permission
      */
-    protected function fallbackToResourcePermission(string $operation): bool
-    {
+    protected function fallbackToResourcePermission(string $operation): bool {
         $user = auth(Utils::getFilamentAuthGuard())->user();
 
         if (! $user) {
