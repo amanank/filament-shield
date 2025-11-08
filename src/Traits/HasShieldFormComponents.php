@@ -113,18 +113,30 @@ trait HasShieldFormComponents {
         $resourceSlug = $entity['resource'];
         $permissions = Utils::getPermissionModel()::where('name', 'like', '%' . $resourceSlug . '__%')->get();
 
-        // Group permissions by relation and operation separately
+        // Build labels as "Operation RelationName" e.g. "View Communications"
         $grouped = [];
         foreach ($permissions as $permission) {
+            // Extract operation (view, create, update, delete, etc.)
+            $operationPart = str($permission->name)
+                ->before($resourceSlug)
+                ->rtrim('_')
+                ->toString();
+            
             // Extract just the relation name part after "__"
-            $relationName = str($permission->name)
+            $relationPart = str($permission->name)
                 ->after("{$resourceSlug}__")
                 ->replace('_', ' ')
                 ->headline()
                 ->toString();
             
+            // Build label as "Operation Relation"
+            $label = str($operationPart)
+                ->headline()
+                ->append(' ' . $relationPart)
+                ->toString();
+            
             // Use the full permission name as the key, but with a cleaner label
-            $grouped[$permission->name] = $relationName;
+            $grouped[$permission->name] = $label;
         }
 
         return $grouped;
