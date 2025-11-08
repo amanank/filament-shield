@@ -36,19 +36,26 @@ class EditRole extends EditRecord {
         $roleName = $this->record->name;
         Log::info("Shield: Syncing permissions for role '{$roleName}'");
 
-        $permissionModel = Utils::getPermissionModel();
-        $allPermissionNames = $permissionModel::pluck('name')->all();
+        // Get permissions currently assigned to this role
+        $currentPermissionNames = $this->record->getPermissionNames()->all();
 
-        // Normalise to plain strings
+        // Normalise selected to plain strings
         $selected = $this->permissions->filter()->unique()->values()->all();
 
-        // Find what was removed
-        $toDetach = array_diff($allPermissionNames, $selected);
+        // Find what was removed (currently has but not in selected)
+        $toDetach = array_diff($currentPermissionNames, $selected);
 
         Log::info("Shield: Role '{$roleName}' - Selected permissions", [
             'count' => count($selected),
             'permissions' => $selected,
         ]);
+
+        Log::info("Shield: Role '{$roleName}' - Currently assigned", [
+            'count' => count($currentPermissionNames),
+            'permissions' => $currentPermissionNames,
+        ]);
+
+        $permissionModel = Utils::getPermissionModel();
 
         // Ensure all selected permission models exist
         $permissionModels = $permissionModel::whereIn('name', $selected)->get();
@@ -57,7 +64,7 @@ class EditRole extends EditRecord {
         $this->record->syncPermissions($permissionModels);
         Log::info("Shield: Role '{$roleName}' - Synced " . count($permissionModels) . ' permissions');
 
-        // Explicitly detach anything not in selected
+        // Explicitly detach anything currently assigned but not in selected
         if (! empty($toDetach)) {
             $this->record->revokePermissionTo($toDetach);
             Log::info("Shield: Role '{$roleName}' - Revoked permissions", [
