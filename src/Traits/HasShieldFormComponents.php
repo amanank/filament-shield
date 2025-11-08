@@ -111,19 +111,23 @@ trait HasShieldFormComponents {
 
     public static function getRelationManagerPermissionsForResource(array $entity): array {
         $resourceSlug = $entity['resource'];
-        $permissions = Utils::getPermissionModel()::where('name', 'like', $resourceSlug . '__%')->get();
+        $permissions = Utils::getPermissionModel()::where('name', 'like', '%' . $resourceSlug . '__%')->get();
 
-        return $permissions
-            ->mapWithKeys(fn($permission) => [
-                $permission->name => static::shield()->hasLocalizedPermissionLabels()
-                    ? str($permission->name)
-                    ->after("{$resourceSlug}__")  // remove the resource prefix
-                    ->replace('_', ' ')
-                    ->headline()
-                    ->toString()
-                    : $permission->name,
-            ])
-            ->toArray();
+        // Group permissions by relation and operation separately
+        $grouped = [];
+        foreach ($permissions as $permission) {
+            // Extract just the relation name part after "__"
+            $relationName = str($permission->name)
+                ->after("{$resourceSlug}__")
+                ->replace('_', ' ')
+                ->headline()
+                ->toString();
+            
+            // Use the full permission name as the key, but with a cleaner label
+            $grouped[$permission->name] = $relationName;
+        }
+
+        return $grouped;
     }
 
     public static function setPermissionStateForRecordPermissions(Component $component, string $operation, array $permissions, ?Model $record): void {
