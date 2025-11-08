@@ -283,6 +283,7 @@ class GenerateCommand extends Command {
                 ->beforeLast('RelationManager')
                 ->kebab()
                 ->after($resourceSlug)  // strip resource name prefix
+                ->ltrim('-')  // strip leading dash
                 ->toString();
 
             foreach ($operations as $operation) {
