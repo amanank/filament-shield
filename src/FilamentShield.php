@@ -16,23 +16,20 @@ use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
-class FilamentShield
-{
+class FilamentShield {
     use EvaluatesClosures;
 
     protected ?Closure $configurePermissionIdentifierUsing = null;
 
     public ?Collection $customPermissions = null;
 
-    public function configurePermissionIdentifierUsing(Closure $callback): static
-    {
+    public function configurePermissionIdentifierUsing(Closure $callback): static {
         $this->configurePermissionIdentifierUsing = $callback;
 
         return $this;
     }
 
-    public function getPermissionIdentifier(string $resource): string
-    {
+    public function getPermissionIdentifier(string $resource): string {
         if ($this->configurePermissionIdentifierUsing) {
 
             $identifier = $this->evaluate(
@@ -52,8 +49,7 @@ class FilamentShield
         return $this->getDefaultPermissionIdentifier($resource);
     }
 
-    public function generateForResource(array $entity): void
-    {
+    public function generateForResource(array $entity): void {
         $resourceByFQCN = $entity['fqcn'];
         $permissionPrefixes = Utils::getResourcePermissionPrefixes($resourceByFQCN);
 
@@ -76,8 +72,7 @@ class FilamentShield
         }
     }
 
-    public function generateForRelationManagers(array $entity): void
-    {
+    public function generateForRelationManagers(array $entity): void {
         $resourceByFQCN = $entity['fqcn'];
         $resourceSlug = $entity['resource'];
 
@@ -96,9 +91,14 @@ class FilamentShield
 
         foreach ($relations as $relationClass) {
             $relationName = class_basename($relationClass);
-            $relationKey = Str::of($relationName)
-                ->beforeLast('RelationManager')
+            $baseNameWithoutRelationManager = (string) Str::of($relationName)->beforeLast('RelationManager');
+
+            // Extract just the relation name by removing the resource name prefix (case-insensitive)
+            $resourceStudly = Str::of($resourceSlug)->studly()->toString();
+            $relationKey = (string) Str::of($baseNameWithoutRelationManager)
+                ->replaceFirst($resourceStudly, '')  // remove resource name (e.g., "TahrikEJadid")
                 ->kebab()
+                ->ltrim('-')  // strip any leading dashes
                 ->toString();
 
             foreach ($operations as $operation) {
@@ -114,8 +114,7 @@ class FilamentShield
         static::giveSuperAdminPermission($permissions);
     }
 
-    public static function generateForPage(string $page): void
-    {
+    public static function generateForPage(string $page): void {
         if (Utils::isPageEntityEnabled()) {
             $permission = Utils::getPermissionModel()::firstOrCreate(
                 ['name' => $page],
@@ -126,8 +125,7 @@ class FilamentShield
         }
     }
 
-    public static function generateForWidget(string $widget): void
-    {
+    public static function generateForWidget(string $widget): void {
         if (Utils::isWidgetEntityEnabled()) {
             $permission = Utils::getPermissionModel()::firstOrCreate(
                 ['name' => $widget],
@@ -138,8 +136,7 @@ class FilamentShield
         }
     }
 
-    protected static function giveSuperAdminPermission(string | array | Collection $permissions): void
-    {
+    protected static function giveSuperAdminPermission(string | array | Collection $permissions): void {
         if (! Utils::isSuperAdminDefinedViaGate() && Utils::isSuperAdminEnabled()) {
             $superAdmin = static::createRole();
 
@@ -149,8 +146,7 @@ class FilamentShield
         }
     }
 
-    public static function createRole(?string $name = null, int | string | null $tenantId = null): Role
-    {
+    public static function createRole(?string $name = null, int | string | null $tenantId = null): Role {
         if (Utils::isTenancyEnabled()) {
             return Utils::getRoleModel()::firstOrCreate(
                 [
@@ -170,8 +166,7 @@ class FilamentShield
     /**
      * Transform filament resources to key value pair for shield
      */
-    public function getResources(): ?array
-    {
+    public function getResources(): ?array {
         $resources = Filament::getResources();
         if (Utils::discoverAllResources()) {
             $resources = [];
@@ -208,8 +203,7 @@ class FilamentShield
     /**
      * Get the localized resource label
      */
-    public static function getLocalizedResourceLabel(string $entity): string
-    {
+    public static function getLocalizedResourceLabel(string $entity): string {
         $resources = Filament::getResources();
         if (Utils::discoverAllResources()) {
             $resources = [];
@@ -228,8 +222,7 @@ class FilamentShield
     /**
      * Get the localized resource permission label
      */
-    public static function getLocalizedResourcePermissionLabel(string $permission): string
-    {
+    public static function getLocalizedResourcePermissionLabel(string $permission): string {
         return Lang::has("filament-shield::filament-shield.resource_permission_prefixes_labels.$permission", app()->getLocale())
             ? __("filament-shield::filament-shield.resource_permission_prefixes_labels.$permission")
             : Str::of($permission)->headline();
@@ -238,8 +231,7 @@ class FilamentShield
     /**
      * Transform filament pages to key value pair for shield
      */
-    public static function getPages(): ?array
-    {
+    public static function getPages(): ?array {
         $pages = Filament::getPages();
 
         if (Utils::discoverAllPages()) {
@@ -257,8 +249,8 @@ class FilamentShield
         }
 
         $clusters = collect($pages)
-            ->map(fn ($page) => $page::getCluster())
-            ->reject(fn ($cluster) => is_null($cluster))
+            ->map(fn($page) => $page::getCluster())
+            ->reject(fn($cluster) => is_null($cluster))
             ->unique()
             ->values()
             ->toArray();
@@ -295,8 +287,7 @@ class FilamentShield
     /**
      * Get localized page label
      */
-    public static function getLocalizedPageLabel(string $page): string
-    {
+    public static function getLocalizedPageLabel(string $page): string {
         $pageInstance = app()->make($page);
 
         return $pageInstance->getTitle()
@@ -308,8 +299,7 @@ class FilamentShield
     /**
      * Transform filament widgets to key value pair for shield
      */
-    public static function getWidgets(): ?array
-    {
+    public static function getWidgets(): ?array {
         $widgets = Filament::getWidgets();
         if (Utils::discoverAllWidgets()) {
             $widgets = [];
@@ -354,8 +344,7 @@ class FilamentShield
     /**
      * Get localized widget label
      */
-    public static function getLocalizedWidgetLabel(string $widget): string
-    {
+    public static function getLocalizedWidgetLabel(string $widget): string {
         $widgetInstance = app()->make($widget);
 
         return match (true) {
@@ -368,15 +357,13 @@ class FilamentShield
         };
     }
 
-    private static function hasValidHeading($widgetInstance): bool
-    {
+    private static function hasValidHeading($widgetInstance): bool {
         return $widgetInstance instanceof Widget
             && method_exists($widgetInstance, 'getHeading')
             && filled(invade($widgetInstance)->getHeading());
     }
 
-    protected function getDefaultPermissionIdentifier(string $resource): string
-    {
+    protected function getDefaultPermissionIdentifier(string $resource): string {
         return Str::of($resource)
             ->afterLast('Resources\\')
             ->beforeLast('Resource')
@@ -385,15 +372,13 @@ class FilamentShield
             ->replace('_', '-');
     }
 
-    protected static function getWidgetInstanceFromWidgetConfiguration(string | WidgetConfiguration $widget): string
-    {
+    protected static function getWidgetInstanceFromWidgetConfiguration(string | WidgetConfiguration $widget): string {
         return $widget instanceof WidgetConfiguration
             ? $widget->widget
             : $widget;
     }
 
-    public function getAllResourcePermissions(): array
-    {
+    public function getAllResourcePermissions(): array {
         return collect($this->getResources())
             ->map(function ($resourceEntity) {
                 return collect(
@@ -403,13 +388,13 @@ class FilamentShield
                         $name = $permission . '_' . $resourceEntity['resource'];
                         $permissionLabel = FilamentShieldPlugin::get()->hasLocalizedPermissionLabels()
                             ? str(static::getLocalizedResourcePermissionLabel($permission))
-                                ->prepend(
-                                    str($resourceEntity['fqcn']::getPluralModelLabel())
-                                        ->title()
-                                        ->append(' - ')
-                                        ->toString()
-                                )
-                                ->toString()
+                            ->prepend(
+                                str($resourceEntity['fqcn']::getPluralModelLabel())
+                                    ->title()
+                                    ->append(' - ')
+                                    ->toString()
+                            )
+                            ->toString()
                             : $name;
                         $resourceLabel = FilamentShieldPlugin::get()->hasLocalizedPermissionLabels()
                             ? static::getLocalizedResourceLabel($resourceEntity['fqcn'])
@@ -426,8 +411,7 @@ class FilamentShield
             ->toArray();
     }
 
-    public function getCustomPermissions(): ?Collection
-    {
+    public function getCustomPermissions(): ?Collection {
 
         if (blank($this->customPermissions)) {
             $query = Utils::getPermissionModel()::query();
@@ -435,18 +419,17 @@ class FilamentShield
                 ->select('name')
                 ->whereNotIn(DB::raw('lower(name)'), $this->getEntitiesPermissions())
                 ->pluck('name')
-                ->reject(fn ($perm) => str_contains($perm, '__'));  // ⛔ exclude relation-manager permissions
+                ->reject(fn($perm) => str_contains($perm, '__'));  // ⛔ exclude relation-manager permissions
         }
 
         return $this->customPermissions;
     }
 
-    protected function getEntitiesPermissions(): ?array
-    {
+    protected function getEntitiesPermissions(): ?array {
         return collect($this->getAllResourcePermissions())->keys()
             ->merge(collect($this->getPages())->map->permission->keys())
             ->merge(collect($this->getWidgets())->map->permission->keys())
-            ->map(fn ($permission) => str($permission)->lower()->toString())
+            ->map(fn($permission) => str($permission)->lower()->toString())
             ->values()
             ->unique()
             ->toArray();
@@ -459,8 +442,7 @@ class FilamentShield
      *
      * @return void
      */
-    public static function prohibitDestructiveCommands(bool $prohibit = true)
-    {
+    public static function prohibitDestructiveCommands(bool $prohibit = true) {
         Commands\GenerateCommand::prohibit($prohibit);
         Commands\InstallCommand::prohibit($prohibit);
         Commands\PublishCommand::prohibit($prohibit);
