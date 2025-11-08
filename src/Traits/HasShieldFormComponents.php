@@ -51,11 +51,23 @@ trait HasShieldFormComponents
                         $schema[] = Forms\Components\Section::make('Relation Managers')
                             ->compact()
                             ->schema([
-                                static::getCheckboxListFormComponent(
-                                    name: $entity['resource'] . '_relations',
-                                    options: $relationManagerPermissions,
-                                    searchable: false
-                                ),
+                                Forms\Components\CheckboxList::make($entity['resource'] . '_relation_managers')
+                                    ->label('')
+                                    ->options(fn (): array => $relationManagerPermissions)
+                                    ->searchable(false)
+                                    ->afterStateHydrated(
+                                        fn (Component $component, string $operation, ?Model $record) => static::setPermissionStateForRecordPermissions(
+                                            component: $component,
+                                            operation: $operation,
+                                            permissions: $relationManagerPermissions,
+                                            record: $record
+                                        )
+                                    )
+                                    ->dehydrated(fn ($state) => ! blank($state))
+                                    ->bulkToggleable()
+                                    ->gridDirection('row')
+                                    ->columns(static::shield()->getResourceCheckboxListColumns())
+                                    ->columnSpan(static::shield()->getResourceCheckboxListColumnSpan()),
                             ])
                             ->collapsed();
                     }
