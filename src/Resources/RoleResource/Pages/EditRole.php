@@ -8,6 +8,7 @@ use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class EditRole extends EditRecord {
     protected static string $resource = RoleResource::class;
@@ -32,6 +33,9 @@ class EditRole extends EditRecord {
     }
 
     protected function afterSave(): void {
+        $roleName = $this->record->name;
+        Log::info("Shield: Syncing permissions for role '{$roleName}'");
+
         $permissionModel = Utils::getPermissionModel();
         $allPermissionNames = $permissionModel::pluck('name')->all();
 
@@ -41,17 +45,30 @@ class EditRole extends EditRecord {
         // Find what was removed
         $toDetach = array_diff($allPermissionNames, $selected);
 
+        Log::info("Shield: Role '{$roleName}' - Selected permissions", [
+            'count' => count($selected),
+            'permissions' => $selected,
+        ]);
+
         // Ensure all selected permission models exist
         $permissionModels = $permissionModel::whereIn('name', $selected)->get();
 
         // Sync selected
         $this->record->syncPermissions($permissionModels);
+        Log::info("Shield: Role '{$roleName}' - Synced " . count($permissionModels) . ' permissions');
 
         // Explicitly detach anything not in selected
         if (! empty($toDetach)) {
             $this->record->revokePermissionTo($toDetach);
+            Log::info("Shield: Role '{$roleName}' - Revoked permissions", [
+                'count' => count($toDetach),
+                'permissions' => array_values($toDetach),
+            ]);
+        } else {
+            Log::info("Shield: Role '{$roleName}' - No permissions to revoke");
         }
 
         $this->record->refresh();
+        Log::info("Shield: Role '{$roleName}' - Sync complete");
     }
 }
