@@ -121,4 +121,112 @@ trait HasShieldRelationManagerAccess {
 
         return null;
     }
+
+    /**
+     * Check if the user can view this relation manager for a specific owner record
+     * This is called by Filament to determine if the relation manager tab should be visible
+     */
+    public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool {
+        // Get a temporary instance to extract the resource slug
+        $tempInstance = new static();
+        $resourceSlug = $tempInstance->extractResourceSlugFromNamespace();
+
+        if (! $resourceSlug) {
+            $result = parent::canViewForRecord($ownerRecord, $pageClass);
+            \Illuminate\Support\Facades\Log::info('Shield canViewForRecord (no resource slug)', ['result' => $result, 'class' => static::class]);
+            return $result;
+        }
+
+        $user = auth(Utils::getFilamentAuthGuard())->user();
+
+        if (! $user) {
+            \Illuminate\Support\Facades\Log::info('Shield canViewForRecord (no user)', ['class' => static::class]);
+            return false;
+        }
+
+        // Check if relation managers are enabled
+        if (! config('filament-shield.relation_managers.enabled')) {
+            $result = parent::canViewForRecord($ownerRecord, $pageClass);
+            \Illuminate\Support\Facades\Log::info('Shield canViewForRecord (disabled)', ['result' => $result, 'class' => static::class]);
+            return $result;
+        }
+
+        // Get the relation manager class name
+        $relationManagerClass = static::class;
+
+        // Generate the permission key for 'view'
+        $permissionName = Utils::generateRelationManagerPermissionKey(
+            'view',
+            $resourceSlug,
+            $relationManagerClass,
+        );
+
+        \Illuminate\Support\Facades\Log::info('Shield canViewForRecord checking', [
+            'resourceSlug' => $resourceSlug,
+            'permissionName' => $permissionName,
+            'class' => static::class,
+        ]);
+
+        // Check if user has the specific relation manager permission
+        if ($user->can($permissionName)) {
+            \Illuminate\Support\Facades\Log::info('Shield canViewForRecord: User has permission', ['permission' => $permissionName]);
+            return true;
+        }
+
+        // Fall back to checking resource permission
+        $resourcePermissionName = "view_{$resourceSlug}";
+        $result = $user->can($resourcePermissionName);
+        \Illuminate\Support\Facades\Log::info('Shield canViewForRecord: Fallback check', ['permission' => $resourcePermissionName, 'result' => $result]);
+        return $result;
+    }
+
+    /**
+     * Check if the relation manager should be read-only
+     * Returns false if the user has create/update/delete permissions, true otherwise
+     */
+    public function isReadOnly(): bool {
+        // Check if relation managers are enabled
+        if (! config('filament-shield.relation_managers.enabled')) {
+            return parent::isReadOnly();
+        }
+
+        $resourceSlug = $this->extractResourceSlugFromNamespace();
+
+        if (! $resourceSlug) {
+            return parent::isReadOnly();
+        }
+
+        $user = auth(Utils::getFilamentAuthGuard())->user();
+
+        if (! $user) {
+            \Illuminate\Support\Facades\Log::info('Shield isReadOnly (no user)', ['class' => static::class]);
+            return true;
+        }
+
+        // Get the relation manager class name
+        $relationManagerClass = static::class;
+
+        // Check if user has any write permissions (create, update, or delete)
+        $canCreate = Utils::generateRelationManagerPermissionKey('create', $resourceSlug, $relationManagerClass);
+        $canUpdate = Utils::generateRelationManagerPermissionKey('update', $resourceSlug, $relationManagerClass);
+        $canDelete = Utils::generateRelationManagerPermissionKey('delete', $resourceSlug, $relationManagerClass);
+
+        $hasWritePermission = $user->can($canCreate) || $user->can($canUpdate) || $user->can($canDelete);
+
+        // If no relation-specific permissions, check resource-level permissions
+        if (! $hasWritePermission) {
+            $hasWritePermission = $user->can("create_{$resourceSlug}") ||
+                $user->can("update_{$resourceSlug}") ||
+                $user->can("delete_{$resourceSlug}");
+        }
+
+        $isReadOnly = ! $hasWritePermission;
+        \Illuminate\Support\Facades\Log::info('Shield isReadOnly', [
+            'isReadOnly' => $isReadOnly,
+            'hasWritePermission' => $hasWritePermission,
+            'class' => static::class,
+        ]);
+
+        return $isReadOnly;
+    }
 }
