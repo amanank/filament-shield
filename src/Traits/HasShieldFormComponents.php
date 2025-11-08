@@ -20,13 +20,8 @@ trait HasShieldFormComponents
             static::getTabFormComponentForResources(),
             static::getTabFormComponentForPage(),
             static::getTabFormComponentForWidget(),
+            static::getTabFormComponentForCustomPermissions(),
         ];
-
-        if (config('filament-shield.relation_managers.enabled')) {
-            $tabs[] = static::getTabFormComponentForRelationManagers();
-        }
-
-        $tabs[] = static::getTabFormComponentForCustomPermissions();
 
         return Forms\Components\Tabs::make('Permissions')
             ->contained()
@@ -45,12 +40,31 @@ trait HasShieldFormComponents
                     : $entity['model']
                 );
 
+                $schema = [
+                    static::getCheckBoxListComponentForResource($entity),
+                ];
+
+                // Add relation manager permissions if enabled
+                if (config('filament-shield.relation_managers.enabled')) {
+                    $relationManagerPermissions = static::getRelationManagerPermissionsForResource($entity);
+                    if (! empty($relationManagerPermissions)) {
+                        $schema[] = Forms\Components\Section::make('Relation Managers')
+                            ->compact()
+                            ->schema([
+                                static::getCheckboxListFormComponent(
+                                    name: $entity['resource'] . '_relations',
+                                    options: $relationManagerPermissions,
+                                    searchable: false
+                                ),
+                            ])
+                            ->collapsed();
+                    }
+                }
+
                 return Forms\Components\Section::make($sectionLabel)
                     ->description(fn () => new HtmlString('<span style="word-break: break-word;">' . Utils::showModelPath($entity['fqcn']) . '</span>'))
                     ->compact()
-                    ->schema([
-                        static::getCheckBoxListComponentForResource($entity),
-                    ])
+                    ->schema($schema)
                     ->columnSpan(static::shield()->getSectionColumnSpan())
                     ->collapsible();
             })
@@ -59,9 +73,17 @@ trait HasShieldFormComponents
 
     public static function getResourceTabBadgeCount(): ?int
     {
-        return collect(FilamentShield::getResources())
+        $count = collect(FilamentShield::getResources())
             ->map(fn ($resource) => count(static::getResourcePermissionOptions($resource)))
             ->sum();
+
+        if (config('filament-shield.relation_managers.enabled')) {
+            $count += collect(FilamentShield::getResources())
+                ->map(fn ($resource) => count(static::getRelationManagerPermissionsForResource($resource)))
+                ->sum();
+        }
+
+        return $count;
     }
 
     public static function getResourcePermissionOptions(array $entity): array
@@ -77,6 +99,20 @@ trait HasShieldFormComponents
                     $name => $label,
                 ];
             })
+            ->toArray();
+    }
+
+    public static function getRelationManagerPermissionsForResource(array $entity): array
+    {
+        $resourceSlug = $entity['resource'];
+        $permissions = Utils::getPermissionModel()::where('name', 'like', $resourceSlug . '__%')->get();
+
+        return $permissions
+            ->mapWithKeys(fn ($permission) => [
+                $permission->name => static::shield()->hasLocalizedPermissionLabels()
+                    ? str($permission->name)->headline()->toString()
+                    : $permission->name,
+            ])
             ->toArray();
     }
 
