@@ -121,20 +121,20 @@ trait HasShieldFormComponents {
                 ->before($resourceSlug)
                 ->rtrim('_')
                 ->toString();
-            
+
             // Extract just the relation name part after "__"
             $relationPart = str($permission->name)
                 ->after("{$resourceSlug}__")
                 ->replace('_', ' ')
                 ->headline()
                 ->toString();
-            
+
             // Build label as "Operation Relation"
             $label = str($operationPart)
                 ->headline()
                 ->append(' ' . $relationPart)
                 ->toString();
-            
+
             // Use the full permission name as the key, but with a cleaner label
             $grouped[$permission->name] = $label;
         }
