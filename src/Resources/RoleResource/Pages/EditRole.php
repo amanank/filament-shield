@@ -23,10 +23,12 @@ class EditRole extends EditRecord {
 
     protected function mutateFormDataBeforeSave(array $data): array {
         $ignoreKeys = ['name', 'guard_name', 'select_all', Utils::getTenantModelForeignKey()];
-
         $permissions = collect();
 
-        foreach ($data as $key => $values) {
+        // Shield nests the real check-box state inside "data"
+        $groups = $data['data'] ?? $data;
+
+        foreach ($groups as $key => $values) {
             if (in_array($key, $ignoreKeys)) {
                 continue;
             }
@@ -35,8 +37,13 @@ class EditRole extends EditRecord {
                 continue;
             }
 
-            // Livewire sends [ 'perm1', 'perm2', '__rm__', '__rm__' ] etc.
-            $clean = collect($values)
+            // Each group is something like [ [ 'perm1','perm2' ], {meta} ]
+            $inner = $values[0] ?? $values;
+            if (! is_array($inner)) {
+                continue;
+            }
+
+            $clean = collect($inner)
                 ->filter(fn($v) => $v && $v !== '__rm__')
                 ->values();
 
@@ -52,6 +59,7 @@ class EditRole extends EditRecord {
 
         return Arr::only($data, ['name', 'guard_name', Utils::getTenantModelForeignKey()]);
     }
+
 
     protected function afterSave(): void {
         $roleName = $this->record->name;
