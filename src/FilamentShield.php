@@ -339,7 +339,7 @@ class FilamentShield
             ->beforeLast('Resource')
             ->replace('\\', '')
             ->snake()
-            ->replace('_', '::');
+            ->replace('_', '-');
     }
 
     protected static function getWidgetInstanceFromWidgetConfiguration(string | WidgetConfiguration $widget): string
