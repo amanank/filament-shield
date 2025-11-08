@@ -282,6 +282,7 @@ class GenerateCommand extends Command {
             $relationKey = Str::of($relationName)
                 ->beforeLast('RelationManager')
                 ->kebab()
+                ->after($resourceSlug)  // strip resource name prefix
                 ->toString();
 
             foreach ($operations as $operation) {
