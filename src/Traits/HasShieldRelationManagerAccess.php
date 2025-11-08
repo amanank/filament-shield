@@ -41,25 +41,8 @@ trait HasShieldRelationManagerAccess {
             $relationManagerClass,
         );
 
-        \Illuminate\Support\Facades\Log::info('Shield trait checking permission', [
-            'action' => $action,
-            'resourceSlug' => $resourceSlug,
-            'relationManagerClass' => $relationManagerClass,
-            'permissionName' => $permissionName,
-            'userPermissions' => $user->getAllPermissions()->pluck('name')->filter(fn($p) => str_contains($p, $resourceSlug))->values()->all(),
-        ]);
-
         // Check if user has the specific relation manager permission
-        if ($user->can($permissionName)) {
-            \Illuminate\Support\Facades\Log::info('Shield: User has relation manager permission', ['permission' => $permissionName]);
-            return true;
-        }
-
-        // Fall back to resource permission
-        $resourcePermissionName = "{$action}_{$resourceSlug}";
-        $hasResourcePerm = $user->can($resourcePermissionName);
-        \Illuminate\Support\Facades\Log::info('Shield: Checking resource permission', ['permission' => $resourcePermissionName, 'result' => $hasResourcePerm]);
-        return $hasResourcePerm;
+        return $user->can($permissionName);
     }
 
     /**
@@ -68,36 +51,28 @@ trait HasShieldRelationManagerAccess {
      * otherwise falls back to resource permission.
      */
     protected function canView(Model $record): bool {
-        $result = $this->can('view', $record);
-        \Illuminate\Support\Facades\Log::info('Shield canView', ['result' => $result, 'class' => static::class]);
-        return $result;
+        return $this->can('view', $record);
     }
 
     /**
      * Check if the user can create records in this relation manager.
      */
     protected function canCreate(): bool {
-        $result = $this->can('create');
-        \Illuminate\Support\Facades\Log::info('Shield canCreate', ['result' => $result, 'class' => static::class]);
-        return $result;
+        return $this->can('create');
     }
 
     /**
      * Check if the user can update records in this relation manager.
      */
     protected function canEdit(Model $record): bool {
-        $result = $this->can('update', $record);
-        \Illuminate\Support\Facades\Log::info('Shield canEdit', ['result' => $result, 'class' => static::class]);
-        return $result;
+        return $this->can('update', $record);
     }
 
     /**
      * Check if the user can delete records in this relation manager.
      */
     protected function canDelete(Model $record): bool {
-        $result = $this->can('delete', $record);
-        \Illuminate\Support\Facades\Log::info('Shield canDelete', ['result' => $result, 'class' => static::class]);
-        return $result;
+        return $this->can('delete', $record);
     }
 
     /**
@@ -132,23 +107,18 @@ trait HasShieldRelationManagerAccess {
         $resourceSlug = $tempInstance->extractResourceSlugFromNamespace();
 
         if (! $resourceSlug) {
-            $result = parent::canViewForRecord($ownerRecord, $pageClass);
-            \Illuminate\Support\Facades\Log::info('Shield canViewForRecord (no resource slug)', ['result' => $result, 'class' => static::class]);
-            return $result;
+            return parent::canViewForRecord($ownerRecord, $pageClass);
         }
 
         $user = auth(Utils::getFilamentAuthGuard())->user();
 
         if (! $user) {
-            \Illuminate\Support\Facades\Log::info('Shield canViewForRecord (no user)', ['class' => static::class]);
             return false;
         }
 
         // Check if relation managers are enabled
         if (! config('filament-shield.relation_managers.enabled')) {
-            $result = parent::canViewForRecord($ownerRecord, $pageClass);
-            \Illuminate\Support\Facades\Log::info('Shield canViewForRecord (disabled)', ['result' => $result, 'class' => static::class]);
-            return $result;
+            return parent::canViewForRecord($ownerRecord, $pageClass);
         }
 
         // Get the relation manager class name
@@ -161,23 +131,14 @@ trait HasShieldRelationManagerAccess {
             $relationManagerClass,
         );
 
-        \Illuminate\Support\Facades\Log::info('Shield canViewForRecord checking', [
-            'resourceSlug' => $resourceSlug,
-            'permissionName' => $permissionName,
-            'class' => static::class,
-        ]);
-
         // Check if user has the specific relation manager permission
         if ($user->can($permissionName)) {
-            \Illuminate\Support\Facades\Log::info('Shield canViewForRecord: User has permission', ['permission' => $permissionName]);
             return true;
         }
 
         // Fall back to checking resource permission
         $resourcePermissionName = "view_{$resourceSlug}";
-        $result = $user->can($resourcePermissionName);
-        \Illuminate\Support\Facades\Log::info('Shield canViewForRecord: Fallback check', ['permission' => $resourcePermissionName, 'result' => $result]);
-        return $result;
+        return $user->can($resourcePermissionName);
     }
 
     /**
@@ -199,7 +160,6 @@ trait HasShieldRelationManagerAccess {
         $user = auth(Utils::getFilamentAuthGuard())->user();
 
         if (! $user) {
-            \Illuminate\Support\Facades\Log::info('Shield isReadOnly (no user)', ['class' => static::class]);
             return true;
         }
 
@@ -220,13 +180,6 @@ trait HasShieldRelationManagerAccess {
                 $user->can("delete_{$resourceSlug}");
         }
 
-        $isReadOnly = ! $hasWritePermission;
-        \Illuminate\Support\Facades\Log::info('Shield isReadOnly', [
-            'isReadOnly' => $isReadOnly,
-            'hasWritePermission' => $hasWritePermission,
-            'class' => static::class,
-        ]);
-
-        return $isReadOnly;
+        return ! $hasWritePermission;
     }
 }

@@ -111,7 +111,8 @@ trait HasShieldFormComponents {
 
     public static function getRelationManagerPermissionsForResource(array $entity): array {
         $resourceSlug = $entity['resource'];
-        $permissions = Utils::getPermissionModel()::where('name', 'like', '%' . $resourceSlug . '__%')->get();
+        // Use escaped underscores to match the exact pattern {operation}_{resourceSlug}__{relationKey}
+        $permissions = Utils::getPermissionModel()::where('name', 'like', '%' . $resourceSlug . '\_\_%')->get();
 
         // Build labels as "Operation RelationName" e.g. "View Communications"
         $grouped = [];
