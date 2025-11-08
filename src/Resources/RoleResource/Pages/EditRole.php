@@ -21,34 +21,37 @@ class EditRole extends EditRecord {
     }
 
     protected function mutateFormDataBeforeSave(array $data): array {
+        // Collect selected permissions from form data
         $this->permissions = collect($data)
-            ->filter(function ($permission, $key) {
-                return ! in_array($key, ['name', 'guard_name', 'select_all', Utils::getTenantModelForeignKey()]);
-            })
-            ->values()
+            ->except(['name', 'guard_name', 'select_all', Utils::getTenantModelForeignKey()])
             ->flatten()
-            ->filter(function ($permission) {
-                // Filter out Livewire's '__rm__' markers which indicate removed items
-                return $permission !== '__rm__';
-            })
+            ->filter() // just remove null/empty values
             ->unique();
 
-        if (Arr::has($data, Utils::getTenantModelForeignKey())) {
-            return Arr::only($data, ['name', 'guard_name', Utils::getTenantModelForeignKey()]);
-        }
-
-        return Arr::only($data, ['name', 'guard_name']);
+        return Arr::only($data, ['name', 'guard_name', Utils::getTenantModelForeignKey()]);
     }
 
     protected function afterSave(): void {
-        $permissionModels = collect();
-        $this->permissions->each(function ($permission) use ($permissionModels) {
-            $permissionModels->push(Utils::getPermissionModel()::firstOrCreate([
-                'name' => $permission,
-                'guard_name' => $this->data['guard_name'],
-            ]));
-        });
+        $permissionModel = Utils::getPermissionModel();
+        $allPermissionNames = $permissionModel::pluck('name')->all();
 
+        // Normalise to plain strings
+        $selected = $this->permissions->filter()->unique()->values()->all();
+
+        // Find what was removed
+        $toDetach = array_diff($allPermissionNames, $selected);
+
+        // Ensure all selected permission models exist
+        $permissionModels = $permissionModel::whereIn('name', $selected)->get();
+
+        // Sync selected
         $this->record->syncPermissions($permissionModels);
+
+        // Explicitly detach anything not in selected
+        if (! empty($toDetach)) {
+            $this->record->revokePermissionTo($toDetach);
+        }
+
+        $this->record->refresh();
     }
 }
