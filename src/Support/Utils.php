@@ -233,6 +233,13 @@ class Utils {
         return config()->get('permission.column_names.team_foreign_key', 'team_id');
     }
 
+    public static function areCustomPermissionsEnabled(): bool {
+        return (bool) (
+            config()->get('filament-shield.entities.custom_permissions', false)
+            && filled(config()->get('filament-shield.custom_permissions', []))
+        );
+    }
+
     /**
      * Generate the relation manager permission key from a relation manager class
      *

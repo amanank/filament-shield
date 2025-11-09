@@ -35,19 +35,12 @@ class GenerateCommand extends Command {
     protected array $widgets = [];
 
     protected string $generatorOption;
-
     protected bool $excludeResources = false;
-
     protected bool $excludePages = false;
-
     protected bool $excludeWidgets = false;
-
     protected bool $onlyResources = false;
-
     protected bool $onlyPages = false;
-
     protected bool $onlyWidgets = false;
-
     protected bool $ignoreConfigExclude = false;
 
     /** @var string */
@@ -87,7 +80,6 @@ class GenerateCommand extends Command {
         if ($this->option('exclude') && blank($this->option('resource')) && blank($this->option('page')) && blank($this->option('widget'))) {
             $this->components->error('No entites provided for the generators ...');
             $this->components->alert('Generation skipped');
-
             $this->resetConfigExclusionCondition($this->ignoreConfigExclude);
 
             return Command::INVALID;
@@ -113,6 +105,13 @@ class GenerateCommand extends Command {
         if (Filament::hasTenancy() && Utils::isTenancyEnabled() && $this->option('relationships')) {
             $this->generateRelationships(Filament::getPanel($panel));
             $this->components->info('Successfully generated relationships for the given panel.');
+        }
+
+        /**
+         * ✅ Add custom permission generation support (from upstream v3.9.10)
+         */
+        if (Utils::areCustomPermissionsEnabled()) {
+            $this->generateCustomPermissions();
         }
 
         return Command::SUCCESS;
@@ -300,13 +299,11 @@ class GenerateCommand extends Command {
             $this->components->info('Successfully generated Page Permissions for:');
             $this->table(
                 ['#', 'Page', 'Permission'],
-                collect($pages)->map(function ($page, $key) {
-                    return [
-                        '#' => $key + 1,
-                        'Page' => $page['class'],
-                        'Permission' => $page['permission'],
-                    ];
-                })
+                collect($pages)->map(fn($page, $key) => [
+                    '#' => $key + 1,
+                    'Page' => $page['class'],
+                    'Permission' => $page['permission'],
+                ])
             );
         }
     }
@@ -318,13 +315,11 @@ class GenerateCommand extends Command {
             $this->components->info('Successfully generated Widget Permissions for:');
             $this->table(
                 ['#', 'Widget', 'Permission'],
-                collect($widgets)->map(function ($widget, $key) {
-                    return [
-                        '#' => $key + 1,
-                        'Widget' => $widget['class'],
-                        'Permission' => $widget['permission'],
-                    ];
-                })
+                collect($widgets)->map(fn($widget, $key) => [
+                    '#' => $key + 1,
+                    'Widget' => $widget['class'],
+                    'Permission' => $widget['permission'],
+                ])
             );
         }
     }
@@ -341,5 +336,38 @@ class GenerateCommand extends Command {
         if ($condition) {
             Utils::enableGeneralExclude();
         }
+    }
+
+    /**
+     * ✅ Added from upstream v3.9.10 — auto-generate custom permissions
+     */
+    protected function generateCustomPermissions(): void {
+        $customPermissions = config('filament-shield.custom_permissions', []);
+
+        if (empty($customPermissions)) {
+            return;
+        }
+
+        $permissionModel = Utils::getPermissionModel();
+        $created = collect();
+
+        foreach ($customPermissions as $permission) {
+            $model = $permissionModel::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => Utils::getFilamentAuthGuard(),
+            ]);
+
+            $created->push($model->name);
+        }
+
+        $this->components->info('Successfully generated Custom Permissions for:');
+
+        $this->table(
+            ['#', 'Permission'],
+            $created->map(fn($name, $i) => [
+                '#' => $i + 1,
+                'Permission' => $name,
+            ])
+        );
     }
 }
