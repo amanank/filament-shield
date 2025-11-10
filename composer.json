@@ -74,6 +74,9 @@
             "aliases": {
                 "FilamentShield": "BezhanSalleh\\FilamentShield\\Facades\\FilamentShield"
             }
+        },
+        "branch-alias": {
+            "dev-v3.9.10-custom": "3.9.x-dev"
         }
     },
     "minimum-stability": "dev",
